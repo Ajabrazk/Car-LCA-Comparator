@@ -1,8 +1,9 @@
 # Classe contenant les informations d'un véhicule
 class Voiture:
     # Constructeur
-    def __init__(self, tech, segment, masse, cap_batterie, masse_batterie, wtt, phev_wtt, fuel_cell, road, road_maint, maint):
-        self.technologie = tech
+    def __init__(self, tech_base, nom_affichage, segment, masse, cap_batterie, masse_batterie, wtt, phev_wtt, fuel_cell, road, road_maint, maint, ttw_dict, tyre, brake):
+        self.technologie_base = tech_base       
+        self.technologie = nom_affichage        
         self.segment = segment
         self.masse_kg = float(masse)
         self.battery_capacity = float(cap_batterie)
@@ -13,10 +14,22 @@ class Voiture:
         self.road_value = float(road)
         self.road_maint_value = float(road_maint)
         self.maintenance_value = float(maint)
+        
+        # CORRECTION : ttw_dict est un dictionnaire, on ne fait pas float() dessus
+        self.ttw_dict = ttw_dict
+        
+        self.tyre_wear_value = float(tyre)
+        self.brake_wear_value = float(brake)
 
     # Retourne la masse du chassis sans la batterie
     def getGliderMass(self):
         return self.masse_kg - self.battery_mass
+
+    # Methode pour recuperer l'echappement selon l'indicateur choisi
+    def getTTW(self, indicateur):
+        if indicateur in self.ttw_dict:
+            return self.ttw_dict[indicateur]
+        return 0.0
 
     # Vérifie si le modèle de voiture existe vraiment (masse superieure a 0)
     def isValid(self):

@@ -1,27 +1,26 @@
 import pandas as pd
 from src.voiture import Voiture
 
-# Classe qui gère la lecture du fichier Excel et les calculs d'impact
 class ACVHandler:
-    # Constructeur
     def __init__(self, fichier_excel):
         self.fichier = fichier_excel
         self.facteurs_emission = {}
-        self.liste_voitures =[]
-        
-        # On remplit les données directement à la création de l'objet
+        self.liste_voitures = []
+        self.indicateurs_disponibles =[]
         self.loadData()
 
-    # Getters
     def getVoitures(self):
         return self.liste_voitures
+        
+    def getIndicateurs(self):
+        return self.indicateurs_disponibles
 
-    def getFacteur(self, nom_facteur):
+    def getFacteur(self, nom_facteur, indicateur):
         if nom_facteur in self.facteurs_emission:
-            return self.facteurs_emission[nom_facteur]
+            if indicateur in self.facteurs_emission[nom_facteur]:
+                return self.facteurs_emission[nom_facteur][indicateur]
         return 0.0
 
-    # Methode utilitaire interne pour securiser la conversion en nombre (comme un helper C++)
     def parseFloat(self, valeur):
         try:
             valeur_texte = str(valeur).replace(',', '.')
@@ -31,117 +30,155 @@ class ACVHandler:
         except:
             return 0.0
 
-    # Remplis les facteurs d'emission et la liste des voitures à partir de l'excel
     def loadData(self):
-        # 1. Chargement des facteurs (sans sauter de ligne)
+        # 1. Chargement des Facteurs d'Emission
         df_facteurs = pd.read_excel(self.fichier, sheet_name="Emission factor")
         df_facteurs.columns = df_facteurs.columns.astype(str).str.strip()
-        df_facteurs = df_facteurs.dropna(subset=['Index', 'Climate change'])
+        df_facteurs = df_facteurs.dropna(subset=['Index'])
+        
+        # --- SELECTION DES INDICATEURS PERTINENTS ---
+        # On restreint volontairement l'outil a ces 4 impacts majeurs (Requete Lea)
+        # Note: Orthographe exacte tiree du fichier Excel (y compris le double 's' a ressources)
+        self.indicateurs_disponibles = [
+            "Climate change",
+            "Particulate matter formation",
+            "Material resources: metals/minerals",
+            "Energy ressources: non-renewable"
+        ]
         
         for index, row in df_facteurs.iterrows():
             nom = str(row['Index']).strip()
-            valeur = row['Climate change']
-            self.facteurs_emission[nom] = valeur
+            self.facteurs_emission[nom] = {}
+            for ind in self.indicateurs_disponibles:
+                if ind in df_facteurs.columns:
+                    self.facteurs_emission[nom][ind] = self.parseFloat(row.get(ind))
+                else:
+                    self.facteurs_emission[nom][ind] = 0.0
 
-        # 2. Chargement des voitures
+        # 2. Chargement des parametres (Tableau du Haut)
         df_voitures = pd.read_excel(self.fichier, sheet_name="Car parameters")
         df_voitures.columns = df_voitures.columns.astype(str).str.strip()
-        col_segment = df_voitures.columns[0] # La premiere colonne contient la taille
         
-        # On bouche les trous des cellules fusionnées
+        # 3. Chargement des TTW (Le tableau du bas, place dans le 2eme onglet)
+        try:
+            df_ttw = pd.read_excel(self.fichier, sheet_name="Car parameters v2")
+            df_ttw.columns = df_ttw.columns.astype(str).str.strip()
+        except:
+            print("Erreur : L'onglet 'Car parameters v2' est introuvable.")
+            df_ttw = pd.DataFrame()
+
+        # Nettoyage des cellules fusionnees
+        col_seg = df_voitures.columns[0]
         if "Fuel" in df_voitures.columns:
             df_voitures["Fuel"] = df_voitures["Fuel"].ffill()
-        if col_segment in df_voitures.columns:
-            df_voitures[col_segment] = df_voitures[col_segment].ffill()
+        if col_seg in df_voitures.columns:
+            df_voitures[col_seg] = df_voitures[col_seg].ffill()
+        if "Choice" in df_voitures.columns:
+            df_voitures["Choice"] = df_voitures["Choice"].ffill()
             
         df_voitures = df_voitures.fillna(0.0)
+        df_ttw = df_ttw.fillna(0.0)
 
-        # Remplir la liste_voitures etape par etape
-        for index, row in df_voitures.iterrows():
-            tech = str(row.get("Fuel", "")).strip()
-            segment = str(row.get(col_segment, "")).strip()
+        # 4. Lecture simultanee des deux tableaux
+        for i in range(len(df_voitures)):
+            row_voit = df_voitures.iloc[i]
             
-            if tech == "0.0" or segment == "0.0" or tech == "" or segment == "":
+            tech_base = str(row_voit.get("Fuel", "")).strip()
+            segment = str(row_voit.get(col_seg, "")).strip()
+            choice = str(row_voit.get("Choice", "")).strip()
+            
+            # Ignorer les lignes vides
+            if tech_base in ["0.0", "nan", ""] or segment in ["0.0", "nan", ""]:
                 continue
 
+            if tech_base == "PHEV-petrol" and choice == "Homologation test":
+                continue
+
+            nom_affichage = tech_base
+            if choice and choice not in ["0.0", "nan"]:
+                nom_affichage = tech_base + " (" + choice + ")"
+
+            # Recuperation securisee du dictionnaire TTW
+            dico_ttw = {}
+            if i < len(df_ttw):
+                row_ttw = df_ttw.iloc[i]
+                for ind in self.indicateurs_disponibles:
+                    if ind in df_ttw.columns:
+                        dico_ttw[ind] = self.parseFloat(row_ttw.get(ind))
+                    else:
+                        dico_ttw[ind] = 0.0
+
             nouvelle_voiture = Voiture(
-                tech, 
-                segment,
-                self.parseFloat(row.get("Vehicle mass")),
-                self.parseFloat(row.get("Battery capacity")),
-                self.parseFloat(row.get("Battery mass")),
-                self.parseFloat(row.get("WTT")),
-                self.parseFloat(row.get("PHEV WTT")),
-                self.parseFloat(row.get("Fuel cell")),
-                self.parseFloat(row.get("Road")),
-                self.parseFloat(row.get("Road maintenance")),
-                self.parseFloat(row.get("Maintenance"))
+                tech_base, nom_affichage, segment,
+                self.parseFloat(row_voit.get("Vehicle mass")),
+                self.parseFloat(row_voit.get("Battery capacity")),
+                self.parseFloat(row_voit.get("Battery mass")),
+                self.parseFloat(row_voit.get("WTT")),
+                self.parseFloat(row_voit.get("PHEV WTT")),
+                self.parseFloat(row_voit.get("Fuel cell")),
+                self.parseFloat(row_voit.get("Road")),
+                self.parseFloat(row_voit.get("Road maintenance")),
+                self.parseFloat(row_voit.get("Maintenance")),
+                dico_ttw, 
+                self.parseFloat(row_voit.get("Tyre wear")),
+                self.parseFloat(row_voit.get("Brake wear"))
             )
             
-            # A chaque iteration, on ajoute la voiture si elle est valide
             if nouvelle_voiture.isValid():
                 self.liste_voitures.append(nouvelle_voiture)
 
-    # Calcule l'impact total de la voiture et renvoie un dictionnaire avec les resultats
-    def calculerImpact(self, voiture, kilometrage, mix_type="Current"):
+    def calculerImpact(self, voiture, kilometrage, indicateur="Climate change"):
         if not voiture.isValid():
             return {}
 
         resultats = {}
+        tech_base = voiture.technologie_base
+        nom_complet = voiture.technologie
 
-        # PARTIE FABRICATION
-        tech = voiture.technologie
-        if tech == "BEV" or tech == "PHEV-petrol" or tech == "FCEV":
+        # FABRICATION
+        if tech_base == "BEV" or tech_base == "PHEV-petrol" or tech_base == "FCEV":
             glider_name = "passenger car production Recycled content, electric, without battery"
-        elif tech == "Diesel":
+        elif tech_base == "Diesel":
             glider_name = "passenger car production Recycled content, diesel"
         else:
             glider_name = "passenger car production Recycled content, petrol/natural gas"
 
-        resultats["Manufacturing_Glider"] = voiture.getGliderMass() * self.getFacteur(glider_name)
-        resultats["Manufacturing_Battery"] = voiture.battery_capacity * self.getFacteur("battery production, average europe")
-        resultats["Manufacturing_FuelCell"] = voiture.fuel_cell_value * self.getFacteur("fuel cell system")
+        resultats["Manufacturing_Glider"] = voiture.getGliderMass() * self.getFacteur(glider_name, indicateur)
+        resultats["Manufacturing_Battery"] = voiture.battery_capacity * self.getFacteur("battery production, average europe", indicateur)
+        resultats["Manufacturing_FuelCell"] = voiture.fuel_cell_value * self.getFacteur("fuel cell system", indicateur)
 
-        # PARTIE USAGE
+        # USAGE WTT
         wtt_impact = 0.0
-        if tech == "PHEV-petrol":
-            if mix_type == "Current":
-                elec_factor = self.getFacteur("prospective Electricity")
-            else:
-                elec_factor = self.getFacteur("Electricity_2050")
-            petrol_factor = self.getFacteur("petrol production")
+        if tech_base == "PHEV-petrol":
+            elec_factor = self.getFacteur("prospective Electricity", indicateur)
+            petrol_factor = self.getFacteur("petrol production", indicateur)
             wtt_impact = ((voiture.wtt_value * elec_factor) + (voiture.phev_wtt_value * petrol_factor)) / 100.0 * kilometrage
         else:
             factor_name = "petrol production"
-            if tech == "Diesel": 
-                factor_name = "diesel production"
-            elif tech == "CNG": 
-                factor_name = "CNG production"
-            elif tech == "LPG": 
-                factor_name = "LPG production"
-            elif tech == "BEV": 
-                if mix_type == "Current":
-                    factor_name = "prospective Electricity"
-                else:
-                    factor_name = "Electricity_2050"
-            elif tech == "FCEV": 
-                if mix_type == "Grey":
-                    factor_name = "hydrogen_grey"
-                else:
-                    factor_name = "hydrogen_green"
+            if tech_base == "Diesel": factor_name = "diesel production"
+            elif tech_base == "CNG": factor_name = "CNG production"
+            elif tech_base == "LPG": factor_name = "LPG production"
+            elif tech_base == "BEV": factor_name = "Electricity_2050" if "2050" in nom_complet else "prospective Electricity"
+            elif tech_base == "FCEV": factor_name = "hydrogen_green" if "Green" in nom_complet else "hydrogen_grey"
             
-            wtt_impact = (voiture.wtt_value * self.getFacteur(factor_name)) / 100.0 * kilometrage
+            wtt_impact = (voiture.wtt_value * self.getFacteur(factor_name, indicateur)) / 100.0 * kilometrage
 
         resultats["Usage_WTT"] = wtt_impact
-        resultats["Usage_TTW"] = 0.0 # Il manque encore les donnees d'echappement
+
+        # USAGE TTW (Echappement + Pneus + Freins)
+        impact_echappement = voiture.getTTW(indicateur) * kilometrage
+        impact_pneus = voiture.tyre_wear_value * self.getFacteur("tyre_wear", indicateur) * kilometrage
+        impact_freins = voiture.brake_wear_value * self.getFacteur("brake_wear", indicateur) * kilometrage
         
-        road_impact = voiture.road_value * self.getFacteur("road_maintenance") * kilometrage
-        maint_impact = ((voiture.road_maint_value * self.getFacteur("road_maintenance")) + (voiture.maintenance_value * self.getFacteur("maintenance, passenger car"))) * kilometrage
+        resultats["Usage_TTW"] = impact_echappement + impact_pneus + impact_freins
+        
+        # ROAD & MAINTENANCE
+        road_impact = voiture.road_value * self.getFacteur("road_maintenance", indicateur) * kilometrage
+        maint_impact = ((voiture.road_maint_value * self.getFacteur("road_maintenance", indicateur)) + (voiture.maintenance_value * self.getFacteur("maintenance, passenger car", indicateur))) * kilometrage
         
         resultats["Usage_Maintenance"] = maint_impact
         resultats["Usage_Road"] = road_impact
 
-        # Calcul du total
         total = 0.0
         for val in resultats.values():
             total += val
