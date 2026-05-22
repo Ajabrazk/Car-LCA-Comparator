@@ -37,8 +37,6 @@ class ACVHandler:
         df_facteurs = df_facteurs.dropna(subset=['Index'])
         
         # --- SELECTION DES INDICATEURS PERTINENTS ---
-        # On restreint volontairement l'outil a ces 4 impacts majeurs (Requete Lea)
-        # Note: Orthographe exacte tiree du fichier Excel (y compris le double 's' a ressources)
         self.indicateurs_disponibles = [
             "Climate change",
             "Particulate matter formation",
@@ -67,14 +65,16 @@ class ACVHandler:
             print("Erreur : L'onglet 'Car parameters v2' est introuvable.")
             df_ttw = pd.DataFrame()
 
+        # SECURITE ABSOLUE : On utilise les positions (index) pour les 3 premieres colonnes 
+        # car elles n'ont pas toujours de nom dans l'Excel de Lea
+        col_seg = df_voitures.columns[0]   # Colonne des tailles (Small, Medium...)
+        col_fuel = df_voitures.columns[1]  # Colonne des moteurs (Petrol, BEV...)
+        col_choice = df_voitures.columns[2] # Colonne des scenarios (Current, 2050...)
+
         # Nettoyage des cellules fusionnees
-        col_seg = df_voitures.columns[0]
-        if "Fuel" in df_voitures.columns:
-            df_voitures["Fuel"] = df_voitures["Fuel"].ffill()
-        if col_seg in df_voitures.columns:
-            df_voitures[col_seg] = df_voitures[col_seg].ffill()
-        if "Choice" in df_voitures.columns:
-            df_voitures["Choice"] = df_voitures["Choice"].ffill()
+        df_voitures[col_fuel] = df_voitures[col_fuel].ffill()
+        df_voitures[col_seg] = df_voitures[col_seg].ffill()
+        df_voitures[col_choice] = df_voitures[col_choice].ffill()
             
         df_voitures = df_voitures.fillna(0.0)
         df_ttw = df_ttw.fillna(0.0)
@@ -83,14 +83,15 @@ class ACVHandler:
         for i in range(len(df_voitures)):
             row_voit = df_voitures.iloc[i]
             
-            tech_base = str(row_voit.get("Fuel", "")).strip()
+            tech_base = str(row_voit.get(col_fuel, "")).strip()
             segment = str(row_voit.get(col_seg, "")).strip()
-            choice = str(row_voit.get("Choice", "")).strip()
+            choice = str(row_voit.get(col_choice, "")).strip()
             
             # Ignorer les lignes vides
             if tech_base in ["0.0", "nan", ""] or segment in ["0.0", "nan", ""]:
                 continue
 
+            # Filtrer le test d'homologation des hybrides (Maintenant ca va marcher !)
             if tech_base == "PHEV-petrol" and choice == "Homologation test":
                 continue
 
