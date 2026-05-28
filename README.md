@@ -2,6 +2,9 @@
 
 This repository contains a web application developed for the PROJ-H402 Computing Project (Master in Computer Science and Engineering, ULB/VUB). The tool calculates and compares the environmental impacts of different passenger car technologies based on Life Cycle Assessment (LCA) data.
 
+You can run this project directly in your browser by clicking this link : 
+https://car-lca-comparator.streamlit.app/
+
 Supervisor: Lea D'Amore 
 
 ## Overview
