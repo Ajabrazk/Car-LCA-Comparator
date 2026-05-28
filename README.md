@@ -58,5 +58,5 @@ The codebase follows a 3-tier architecture to decouple data processing from the 
 Run the application by typing this command in the terminal:
 ```bash
 python -m streamlit run app.py
-
+```
 The interface will be accessible in your web browser at `http://localhost:8501`.
