@@ -15,7 +15,7 @@ class Voiture:
         self.road_maint_value = float(road_maint)
         self.maintenance_value = float(maint)
         
-        # CORRECTION : ttw_dict est un dictionnaire, on ne fait pas float() dessus
+        # ttw_dict est un dictionnaire donc on fait pas float() dessus
         self.ttw_dict = ttw_dict
         
         self.tyre_wear_value = float(tyre)
@@ -31,7 +31,7 @@ class Voiture:
             return self.ttw_dict[indicateur]
         return 0.0
 
-    # Vérifie si le modèle de voiture existe vraiment (masse superieure a 0)
+    # Vérifie si le modèle de voiture existe vraiment (suffit que sa masse soit positive)
     def isValid(self):
         if self.masse_kg > 0:
             return True

@@ -5,16 +5,23 @@ import os
 
 from src.acv_handler import ACVHandler
 
-# ---------------------------------------------------------
+# --------------
 # CONFIGURATION
-# ---------------------------------------------------------
+# -------------
 st.set_page_config(page_title="Passenger Car LCA", page_icon="🚗", layout="wide")
 
+# Couleurs fixes
 COULEURS_TECH = {
-    "Petrol": "#EF553B", "Diesel": "#66C2A5", "CNG": "#8DA0CB", "LPG": "#E78AC3",
-    "HEV-petrol": "#A6D854", "PHEV-petrol (UF 2027 - 2050)": "#FFD92F",
-    "BEV (Current)": "#E5C494", "BEV (2050)": "#F5DEB3",
-    "FCEV (Grey)": "#B3B3B3", "FCEV (Green)": "#D3D3D3"
+    "Petrol": "#EF553B",                       
+    "Diesel": "#8C564B",                      
+    "CNG": "#1F77B4",                          
+    "LPG": "#E78AC3",                          
+    "HEV-petrol": "#9467BD",                   
+    "PHEV-petrol (UF 2027 - 2050)": "#FFD92F", 
+    "BEV (Current)": "#E5C494",                
+    "BEV (2050)": "#AEC7E8",                   
+    "FCEV (Grey)": "#7F7F7F",                 
+    "FCEV (Green)": "#C7C7C7"                  
 }
 
 UNITES_IMPACT = {
@@ -51,9 +58,9 @@ if "technologies_choisies" not in st.session_state:
 if "indicateur_choisi" not in st.session_state:
     st.session_state["indicateur_choisi"] = "Climate change"
 
-# ---------------------------------------------------------
+# ------------
 # EN-TETE FIXE
-# ---------------------------------------------------------
+# ------------
 st.title("Passenger Car Life Cycle Assessment")
 
 st.markdown("### What is Life Cycle Assessment (LCA)?")
@@ -64,9 +71,9 @@ st.write("It helps us look beyond just tailpipe exhaust. By calculating the impa
 
 st.write("")
 
-# ---------------------------------------------------------
+# --------------------------------
 # FONCTION : PANNEAU DE PARAMETRES
-# ---------------------------------------------------------
+# --------------------------------
 def afficherPanneauParametres():
     toutes_les_voitures = acv_handler.getVoitures()
     tous_les_indicateurs = acv_handler.getIndicateurs()
@@ -114,9 +121,9 @@ if st.session_state["page_actuelle"] == "home":
                 else:
                     st.error("Please select at least one technology.")
 
-# ---------------------------------------------------------
+# ------------------
 # PAGE 2 : RESULTATS
-# ---------------------------------------------------------
+# ------------------
 elif st.session_state["page_actuelle"] == "results":
     
     with st.expander("⚙️ Modify parameters (Click to expand)"):
@@ -152,30 +159,30 @@ elif st.session_state["page_actuelle"] == "results":
         return dictionnaire["Total"]
     resultats_bruts.sort(key=trier_par_total)
 
-    # --- CLASSEMENT ---                            
-    st.title("Results")         
-    for index in range(len(resultats_bruts)):           
-        st.markdown("### " + str(index + 1) + ". " + resultats_bruts[index]["Technology"])          
+    # Classement
+    st.title("Results")
+    for index in range(len(resultats_bruts)):
+        st.markdown("### " + str(index + 1) + ". " + resultats_bruts[index]["Technology"])
         
     st.success("The best performing vehicle for your usage on this indicator is the **" + resultats_bruts[0]["Technology"] + "**.")
     st.divider()
 
-    # --- GRAPHE DECOMPOSITION ---  
-    st.header("Impact breakdown")           
-    st.write("Each bar corresponds to a technology, and each color represents an impact source (production or use).")       
+    # Graphe en batonnet
+    st.header("Impact breakdown")
+    st.write("Each bar corresponds to a technology, and each color represents an impact source (production or use).")
 
     resultats_propres =[]
-    traduction_legendes = {         
-        "Manufacturing_Glider": "Glider Manufacturing",         
-        "Manufacturing_Battery": "Battery Manufacturing",           
-        "Manufacturing_FuelCell": "Fuel Cell Manufacturing",            
-        "Usage_WTT": "Energy Production (WTT)",         
-        "Usage_TTW": "Tailpipe & Direct Emissions (TTW)",           
-        "Usage_Maintenance": "Vehicle Maintenance",         
-        "Usage_Road": "Road Wear"               
+    traduction_legendes = {
+        "Manufacturing_Glider": "Glider Manufacturing",
+        "Manufacturing_Battery": "Battery Manufacturing",
+        "Manufacturing_FuelCell": "Fuel Cell Manufacturing",
+        "Usage_WTT": "Energy Production (WTT)",
+        "Usage_TTW": "Tailpipe & Direct Emissions (TTW)",
+        "Usage_Maintenance": "Vehicle Maintenance",
+        "Usage_Road": "Road Wear"
     }
 
-    for res in resultats_bruts:         
+    for res in resultats_bruts:
         ligne = {"Technology": res["Technology"]}
         for cle_tech, nom_clair in traduction_legendes.items():
             ligne[nom_clair] = res.get(cle_tech, 0.0)
@@ -196,7 +203,7 @@ elif st.session_state["page_actuelle"] == "results":
     figure_barres.update_layout(legend_title_text='')
     st.plotly_chart(figure_barres, width="stretch")
 
-    # --- GRAPHE EVOLUTION ---
+    # Evolution dans le temps 
     st.header("Evolution over time")
     st.write("Shows how the environmental impact accumulates throughout the vehicle's life.")
 
@@ -217,6 +224,7 @@ elif st.session_state["page_actuelle"] == "results":
             })
 
     df_lignes = pd.DataFrame(donnees_lignes)
+    # L'utilisation  du dictionnaire COULEURS_TECH garantit que les couleurs sont fixes
     figure_lignes = px.line(
         df_lignes, x="Mileage (km)", y="Cumulative Impact", color="Technology", color_discrete_map=COULEURS_TECH,
         labels={"Cumulative Impact": f"Cumulative Impact ({unite_impact})"}
@@ -224,7 +232,7 @@ elif st.session_state["page_actuelle"] == "results":
     figure_lignes.add_vline(x=kilometrage_total, line_dash="dash", line_color="red", annotation_text="End of life")
     st.plotly_chart(figure_lignes, width="stretch")
     
-    # --- INTERPRETATION DYNAMIQUE DU GRAPHIQUE ---
+    # Partie interpretation du graphe 
     st.markdown("#### 💡 Graph Interpretation")
     
     max_fabrication = -1.0
@@ -269,7 +277,7 @@ elif st.session_state["page_actuelle"] == "results":
 
     st.divider()
 
-    # --- EN QUELQUES CHIFFRES (EQUIVALENCES) ---
+    # Partie "En quelques chiffres" pour plus de clarté
     st.header("In a few figures...")
     colonnes_metriques = st.columns(len(resultats_bruts))
     
@@ -307,7 +315,6 @@ elif st.session_state["page_actuelle"] == "results":
                     
                 elif ind_choisi == "Particulate matter formation":
                     st.metric(label=f"Total ({unite_impact})", value=texte_valeur)
-                    # 1 kg de bois brulé = ~10g PM2.5 = ~0.000006 Disease incidence
                     kg_bois = int(total_valeur / 0.000006)
                     st.caption(f"🔥 Equivalent to the particulate pollution from burning **{kg_bois:,} kg of wood** in an open fire*".replace(',', ' '))
 
@@ -323,26 +330,34 @@ elif st.session_state["page_actuelle"] == "results":
         
     st.divider()
     
-    # --- ASSUMPTIONS (DONNEES TECHNIQUES DU CALCUL) ---
+    #  Différentes assumptions 
     st.header("Assumptions used for this calculation")
     st.write("Chosen parameters: Segment **" + st.session_state["segment_choisi"] + "** | Total mileage: **" + "{:,}".format(kilometrage_total).replace(',', ' ') + " km**.")
     
     for v in vehicules_utilises:
         chaine_infos = "- **" + v.technologie + "** : Total mass = " + str(v.masse_kg) + " kg"
         
+        # Attribution automatique de l'unite physique selon la technologie de base
+        unite_conso = "L/100km"
+        if v.technologie_base == "BEV":
+            unite_conso = "kWh/100km"
+        elif v.technologie_base == "FCEV" or v.technologie_base == "CNG":
+            unite_conso = "kg/100km"
+            
+        # Distinction de la consommation 
         if v.technologie_base == "PHEV-petrol":
-            chaine_infos += " | Energy parameter (Electric) = " + str(v.wtt_value) + " | Energy parameter (Thermal) = " + str(v.phev_wtt_value)
+            chaine_infos += " | Electric consumption = " + str(v.wtt_value) + " kWh/100km | Fuel consumption = " + str(v.phev_wtt_value) + " L/100km"
         else:
-            chaine_infos += " | Energy parameter = " + str(v.wtt_value)
+            chaine_infos += " | Consumption = " + str(v.wtt_value) + " " + unite_conso
             
         if v.battery_capacity > 0:
             chaine_infos += " | Battery capacity = " + str(v.battery_capacity) + " kWh"
             
         st.write(chaine_infos)
 
-# ---------------------------------------------------------
-# DESCRIPTION DES INDICATEURS
-# ---------------------------------------------------------
+# ----------------------------------------
+# DESCRIPTION DES INDICATEURS ET SCENARIOS
+# ----------------------------------------
 with st.expander("ℹ️ About the Environmental Impact Categories"):
     st.markdown("""
     To keep the analysis clear and relevant, we have selected the 4 most critical impact categories to illustrate the trade-offs between vehicle technologies:
@@ -351,4 +366,15 @@ with st.expander("ℹ️ About the Environmental Impact Categories"):
     * **Particulate matter formation (`Disease incidence`):** Fine dust emissions impacting human respiratory health. Crucial for urban air quality, it accounts for tailpipe exhaust, but also **tire and brake wear** (which affects even electric vehicles due to their weight).
     * **Material resources: metals/minerals (`kg Sb eq`):** Depletion of mineral resources (measured in Antimony equivalent). This indicator perfectly highlights the hidden environmental cost of manufacturing EV batteries (mining lithium, cobalt, etc.).
     * **Energy ressources: non-renewable (`MJ`):** Depletion of fossil fuels (oil, coal, gas). Highlights the difference between burning petrol daily versus relying on electricity (which can be renewable).
+    """)
+
+with st.expander("ℹ️ About the Energy Scenarios & Terminology"):
+    st.markdown("""
+    To accurately model the environmental impact, we use specific scenarios for energy production and vehicle usage:
+    
+    * **Current (Electricity):** Represents the average carbon intensity of the electricity grid available today.
+    * **2050 (Electricity):** Represents a prospective scenario where the electricity grid is highly decarbonized (massive integration of renewable energies) by the year 2050.
+    * **Grey (Hydrogen):** Hydrogen produced via Steam Methane Reforming (SMR) using natural gas. This is the most common and carbon-intensive method today.
+    * **Green (Hydrogen):** Hydrogen produced via water electrolysis powered entirely by renewable energy (solar, wind).
+    * **UF 2027 - 2050 (PHEV):** "Utility Factor". Instead of using overly optimistic homologation laboratory tests, this factor reflects the **real-world driving and charging behavior** projected for Plug-in Hybrid vehicles.
     """)

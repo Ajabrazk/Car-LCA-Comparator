@@ -19,6 +19,7 @@ class ACVHandler:
         if nom_facteur in self.facteurs_emission:
             if indicateur in self.facteurs_emission[nom_facteur]:
                 return self.facteurs_emission[nom_facteur][indicateur]
+                # Par ex, self.facteurs_emission["petrol production"]["Climate change"] = 0.765899
         return 0.0
 
     def parseFloat(self, valeur):
@@ -31,12 +32,12 @@ class ACVHandler:
             return 0.0
 
     def loadData(self):
-        # 1. Chargement des Facteurs d'Emission
+        # Chargement des Facteurs d'Emission
         df_facteurs = pd.read_excel(self.fichier, sheet_name="Emission factor")
         df_facteurs.columns = df_facteurs.columns.astype(str).str.strip()
         df_facteurs = df_facteurs.dropna(subset=['Index'])
         
-        # --- SELECTION DES INDICATEURS PERTINENTS ---
+        # Choix des indicateurs (ceux que j'ai trouvé pertinents)
         self.indicateurs_disponibles = [
             "Climate change",
             "Particulate matter formation",
@@ -53,11 +54,11 @@ class ACVHandler:
                 else:
                     self.facteurs_emission[nom][ind] = 0.0
 
-        # 2. Chargement des parametres (Tableau du Haut)
+        # Chargement des parametres (Tableau du Haut)
         df_voitures = pd.read_excel(self.fichier, sheet_name="Car parameters")
         df_voitures.columns = df_voitures.columns.astype(str).str.strip()
         
-        # 3. Chargement des TTW (Le tableau du bas, place dans le 2eme onglet)
+        # Chargement des TTW (Le tableau du bas, place dans le 2eme onglet)
         try:
             df_ttw = pd.read_excel(self.fichier, sheet_name="Car parameters v2")
             df_ttw.columns = df_ttw.columns.astype(str).str.strip()
@@ -65,8 +66,8 @@ class ACVHandler:
             print("Erreur : L'onglet 'Car parameters v2' est introuvable.")
             df_ttw = pd.DataFrame()
 
-        # SECURITE ABSOLUE : On utilise les positions (index) pour les 3 premieres colonnes 
-        # car elles n'ont pas toujours de nom dans l'Excel de Lea
+        # On utilise les positions (index) pour les 3 premieres colonnes 
+        # car elles n'ont pas toujours de nom dans l'Excel 
         col_seg = df_voitures.columns[0]   # Colonne des tailles (Small, Medium...)
         col_fuel = df_voitures.columns[1]  # Colonne des moteurs (Petrol, BEV...)
         col_choice = df_voitures.columns[2] # Colonne des scenarios (Current, 2050...)
@@ -79,7 +80,7 @@ class ACVHandler:
         df_voitures = df_voitures.fillna(0.0)
         df_ttw = df_ttw.fillna(0.0)
 
-        # 4. Lecture simultanee des deux tableaux
+        # Lecture simultanee des deux tableaux
         for i in range(len(df_voitures)):
             row_voit = df_voitures.iloc[i]
             
